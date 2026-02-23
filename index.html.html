@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viral Video Hub</title>
+    <script src='//libtl.com/sdk.js' data-zone='9925666' data-sdk='show_9925666'></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root { --bg: #0b0c0e; --card: #1c1d21; --accent: #00f2ea; --primary: #ff0050; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; padding-bottom: 70px; }
+        .navbar { padding: 15px; background: var(--card); text-align: center; border-bottom: 1px solid #333; position: sticky; top: 0; z-index: 100; font-weight: bold; }
+        .ch-box { display: flex; gap: 8px; justify-content: center; padding: 10px; background: #222; }
+        .ch-btn { background: #0088cc; color: white; padding: 6px 12px; border-radius: 20px; text-decoration: none; font-size: 12px; }
+        .video-card { background: var(--card); margin: 15px; border-radius: 15px; overflow: hidden; border: 1px solid #222; }
+        .media-box { width: 100%; height: 230px; background: #000; position: relative; }
+        .media-box img { width: 100%; height: 100%; object-fit: cover; }
+        iframe { width: 100%; height: 100%; border: none; display: none; }
+        .v-info { padding: 15px; }
+        .btn-watch { width: 100%; padding: 14px; border: none; border-radius: 10px; background: var(--primary); color: white; font-weight: bold; cursor: pointer; }
+        .unlocked { background: #28a745 !important; }
+        .support { position: fixed; bottom: 15px; right: 15px; background: #28a745; color: white; padding: 10px 18px; border-radius: 50px; text-decoration: none; font-weight: bold; font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.4); }
+    </style>
+</head>
+<body>
+
+<div class="navbar">🎥 VIRAL VIDEO PLAYER</div>
+<div class="ch-box">
+    <a href="https://t.me/Channel1" class="ch-btn">📢 চ্যানেল ১</a>
+    <a href="https://t.me/Channel2" class="ch-btn">📢 চ্যানেল ২</a>
+</div>
+
+<div id="video-feed">
+    <p style="text-align:center; margin-top:50px; color:#666;">ভিডিও লোড হচ্ছে...</p>
+</div>
+
+<a href="https://t.me/AdminID" class="support">💬 সাপোর্ট</a>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, getDocs, updateDoc, doc, increment, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+  apiKey: "AIzaSyBLXKBnahFSNcJCX_0h3U3A05XNKb2v7Dk",
+  authDomain: "telegram-bot-e3074.firebaseapp.com",
+  databaseURL: "https://telegram-bot-e3074-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "telegram-bot-e3074",
+  storageBucket: "telegram-bot-e3074.firebasestorage.app",
+  messagingSenderId: "49380574751",
+  appId: "1:49380574751:web:4b7085571ecfc2446f772a",
+  measurementId: "G-JTMEPJ24G2"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const adsTracker = {};
+
+    async function loadVideos() {
+        const feed = document.getElementById('video-feed');
+        const snap = await getDocs(query(collection(db, "videos"), orderBy("createdAt", "desc")));
+        feed.innerHTML = "";
+        
+        snap.forEach(v => {
+            const d = v.data();
+            const id = v.id;
+            adsTracker[id] = 0;
+            const card = document.createElement('div');
+            card.className = 'video-card';
+            card.innerHTML = `
+                <div class="media-box">
+                    <img src="${d.image}" id="img-${id}">
+                    <iframe id="play-${id}" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                </div>
+                <div class="v-info">
+                    <div style="font-weight:bold; margin-bottom:5px;">${d.title}</div>
+                    <div style="font-size:12px; color:var(--accent); margin-bottom:12px;">👁️ ${d.views || 0} Views</div>
+                    <button class="btn-watch" id="btn-${id}">Watch Ad to Unlock (0/3)</button>
+                </div>`;
+            feed.appendChild(card);
+            document.getElementById(`btn-${id}`).onclick = () => handlePlay(id, d.url);
+        });
+    }
+
+    async function handlePlay(id, url) {
+        const btn = document.getElementById(`btn-${id}`);
+        if(adsTracker[id] < 3) {
+            if(typeof show_9925666 === 'function'){
+                show_9925666().then(() => {
+                    adsTracker[id]++;
+                    btn.innerText = `Watch Ad to Unlock (${adsTracker[id]}/3)`;
+                    if(adsTracker[id] === 3) { btn.innerText = "Play Now"; btn.classList.add('unlocked'); }
+                }).catch(() => { alert("অ্যাড লোড হয়নি, আবার চেষ্টা করুন"); });
+            } else {
+                adsTracker[id]++; // SDK না থাকলে সিমুলেশন
+                btn.innerText = `Ads: ${adsTracker[id]}/3`;
+                if(adsTracker[id] === 3) btn.classList.add('unlocked');
+            }
+        } else {
+            await updateDoc(doc(db, "videos", id), { views: increment(1) });
+            const p = document.getElementById(`play-${id}`);
+            document.getElementById(`img-${id}`).style.display = "none";
+            p.style.display = "block";
+            
+            if(url.includes("youtube.com") || url.includes("youtu.be")){
+                let vidId = url.split('v=')[1] || url.split('/').pop();
+                p.src = `https://www.youtube.com/embed/${vidId}?autoplay=1&mute=0`;
+            } else { p.src = url; }
+            btn.style.display = "none";
+        }
+    }
+
+    loadVideos();
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+</script>
+</body>
+</html>
